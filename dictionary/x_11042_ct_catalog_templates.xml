@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element extends="sc_request" label="Catalog Templates" max_length="40" name="x_11042_ct_catalog_templates" type="collection"/>
+</database>

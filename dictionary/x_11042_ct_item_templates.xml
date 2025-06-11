@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element label="Item Templates" max_length="40" name="x_11042_ct_item_templates" type="collection">
+        <element attributes="edge_encryption_enabled=true" label="Description" max_length="100" name="description" type="string"/>
+        <element attributes="edge_encryption_enabled=true" label="Is Valid" max_length="40" name="is_valid" type="boolean"/>
+        <element attributes="edge_encryption_enabled=true" label="Item" max_length="32" name="item" reference="sc_cat_item" type="reference"/>
+        <element attributes="edge_encryption_enabled=true" display="true" label="Name" max_length="40" name="name" type="string"/>
+        <element attributes="ignore_filter_on_new=true" default="javascript:global.getNextObjNumberPadded();" label="Number" max_length="40" name="number" type="string"/>
+        <index name="index">
+            <element name="item"/>
+        </index>
+    </element>
+</database>

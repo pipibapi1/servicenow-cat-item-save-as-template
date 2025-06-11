@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?><database>
+    <element attributes="global_search_config_handler=CatalogItem,all_tables.text_index_translations=true,update_synch=true,all_tables.synch_attachments=true,text_wiki_translations=true" extends="sys_metadata" label="Catalog Item" max_length="40" name="sc_cat_item" read_roles="catalog,itil" text_index="true" type="collection">
+        <element label="Template" max_length="40" name="x_11042_ct_template" type="boolean"/>
+    </element>
+</database>
