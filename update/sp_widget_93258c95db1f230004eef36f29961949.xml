@@ -1,0 +1,1007 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_widget">
+    <sp_widget action="INSERT_OR_UPDATE">
+        <category>sc</category>
+        <client_script><![CDATA[function ($scope, $http, spUtil, nowAttachmentHandler, $rootScope, $sanitize, $window, $sce, i18n, $timeout, $log, spAriaUtil) {
+	var c = this;
+	c.quantity = 1;
+		
+
+	
+	c.data.submitItem=function(){
+		if($('#cbtest').is(":checked"))
+  $("#tempSave").css({"display":"block"});
+		else{
+			 $scope.triggerOnSubmit();
+ 
+		}
+	};
+	
+	c.data.saveTemp =function(){
+		if(c.data.tempName==''||c.data.tempDesc==''||c.data.tempName==undefined||c.data.tempDesc==undefined){
+			alert('Please fill the details');
+		return;}
+		else{
+		$scope.triggerOnSubmit();
+		 $("#tempSave").css({"display":"none"});
+		
+		}
+	};
+	
+$(".close-modal").click(function(){
+  $(".modal").css({"display":"none"});
+  // $("body").css({"overflow-y": "auto"}); //Prevent double scrollbar.
+});
+	
+	
+	
+	if ($scope.data.sc_cat_item)
+		$scope.data.sc_cat_item.description = $sce.trustAsHtml($scope.data.sc_cat_item.description);
+	c.widget._debugContextMenu = [
+		[ i18n.getMessage("Open") + " sc_cat_item", function(){
+			var item = c.data.sc_cat_item;
+			$window.open("/sp_config?id=form&table=" + item.table + "&sys_id=" + item.sys_id); }]
+	];
+	c.showAddCartBtn = function() {
+		return c.options.show_add_cart_button &&
+			c.data.sc_cat_item.sys_class_name !== "sc_cat_item_producer" &&
+			!c.data.sc_cat_item.no_cart;
+	}
+
+	c.showQuantitySelector = function() {
+		return c.data.sc_cat_item.sys_class_name !== "sc_cat_item_producer" &&
+			!c.data.sc_cat_item.no_quantity &&
+			(!c.data.sc_cat_item.no_order_now || !c.data.sc_cat_item.no_cart);
+	}
+
+	c.showOrderNowButton = function() {
+		return c.data.sc_cat_item.use_sc_layout || !c.data.sc_cat_item.no_order_now;
+	}
+
+	c.allowOrder = function() {
+		if (c.data.sc_cat_item.use_sc_layout)
+			return true;
+
+		if (c.data.sc_cat_item.no_order)
+			return false;
+
+		if (c.data.sc_cat_item.no_order_now && c.data.sc_cat_item.no_cart)
+			return false;
+
+		return true;
+	}
+	
+/*	c.getTemplates = function() {
+		c.data.action = 'get_templates';
+		c.server.update();
+	}*/
+
+
+	$scope.$on('dialog.upload_too_large.show', function(e){
+		$log.error($scope.m.largeAttachmentMsg);
+		spUtil.addErrorMessage($scope.m.largeAttachmentMsg);
+	});
+
+	$scope.m = $scope.data.msgs;
+	$scope.submitButtonMsg = $scope.m.submitMsg;
+	var ah = $scope.attachmentHandler = new nowAttachmentHandler(setAttachments, appendError);
+	function appendError(error) {
+		spUtil.addErrorMessage(error.msg + error.fileName);
+	}
+	ah.setParams('sp_portal', $scope.data._attachmentGUID, 1024 * 1024 * 24);
+	function setAttachments(attachments, action) {
+		$scope.attachments = attachments;
+		if (action === "added")
+			$scope.setFocusToAttachment();
+		if (action === "renamed")
+			spAriaUtil.sendLiveMessage($scope.m.renameSuccessMsg);
+		if (action === "deleted")
+			spAriaUtil.sendLiveMessage($scope.m.deleteSuccessMsg);
+	}
+	$scope.attachmentHandler.getAttachmentList();
+
+	$scope.confirmDeleteAttachment = function(attachment, $event) {
+    $rootScope.$broadcast("dialog.delete_attachment.show", {
+      parms: {
+        ok: function() {
+          $scope.attachmentHandler.deleteAttachment(attachment);
+          $rootScope.$broadcast("dialog.delete_attachment.close");
+        },
+        cancel: function() {
+          $rootScope.$broadcast("dialog.delete_attachment.close");
+        },
+        details: attachment.name
+      }
+    })
+  }
+
+	// Breadcrumbs
+	if ($scope.data.sc_cat_item) {
+		var bc = [{label: $scope.page.title, url: '?id=' + $scope.data.sc_catalog_page}];
+		if ($scope.data.category)
+			bc[bc.length] = {label: $scope.data.category.name, url: $scope.data.category.url};
+
+		bc[bc.length] = {label: $scope.data.sc_cat_item.name, url: '#'};
+		$timeout(function() {
+			$scope.$emit('sp.update.breadcrumbs', bc);
+		});
+		spUtil.setSearchPage('sc');
+	} else {
+		var notFoundBC = [{label: $scope.page.title, url: '?id=' + $scope.data.sc_catalog_page}];
+		$timeout(function() {
+			$scope.$emit('sp.update.breadcrumbs', notFoundBC);
+		});
+		spUtil.setSearchPage('sc');
+	}
+
+	var g_form;
+	$scope.$on('spModel.gForm.initialized', function(e, gFormInstance){
+		g_form = gFormInstance;
+
+		// This runs after all onSubmit scripts have executed
+		g_form.$private.events.on('submitted', function(){
+			if ($scope.data.sc_cat_item.item_action === "order")
+				getOne();
+			else if ($scope.data.sc_cat_item.item_action === "add_to_cart")
+				addToCart();
+		});
+	});
+
+	$scope.triggerAddToCart = function() {
+		$scope.data.sc_cat_item.item_action = "add_to_cart";
+		$scope.data.sc_cat_item.quantity = c.quantity;
+		if (g_form)
+			g_form.submit();
+	}
+
+	$scope.triggerOnSubmit = function(){
+		$scope.data.sc_cat_item.item_action = "order";
+		$scope.data.sc_cat_item.quantity = c.quantity;
+		if (g_form)
+			g_form.submit();
+	}
+
+	// order / create request
+	function getOne() {
+		postCatalogFormRequest().success(function(response) {
+			var a = response.result ? response.result : response.answer;
+			var n = a.number;
+			$scope.$emit("$$uiNotification", a.$$uiNotification);
+			$scope.$emit("$sp.sc_cat_item.submitted", a);
+			if (n)
+				issueMessage(n, a.table, a.sys_id, a.redirect_to, a.redirect_portal_url);
+			$scope.submitting = false;
+			$scope.submitButtonMsg = $scope.m.submittedMsg;
+		}).error(function(response) {
+			console.log(response);
+		});
+	}
+
+	function addToCart() {
+		postCatalogFormRequest().success(function(response) {
+			$rootScope.$broadcast("$sp.service_catalog.cart.add_item");
+			$rootScope.$broadcast("$sp.service_catalog.cart.update");
+			//spUtil.addInfoMessage("Added item to shopping cart");
+			$scope.submitting = false;
+			c.status = "Added item to shopping cart";
+		});
+	}
+
+	function postCatalogFormRequest() {
+		setFieldsReadonly();
+		var str = $('#cbtest')[0].checked;
+		if(str == 'true' || str == true){
+		c.data.mapping = $scope.data.sc_cat_item;
+			//console.log(c.data.mapping)
+		c.data.action = 'add_template';
+		c.server.update().then(function(){
+			
+			spUtil.addInfoMessage("Template has been saved");
+			
+		})
+		}
+		$scope.submitted = true;
+		$scope.submitting = true;
+		var requestUrl;
+		var reqData = {};
+    if ($scope.data.sc_cat_item.sys_class_name === "sc_cat_item_producer") {
+			requestUrl = '/api/sn_sc/v1/servicecatalog/items/' + $scope.data.sc_cat_item.sys_id + '/submit_producer';
+			for(var obj in $scope.data.sc_cat_item._fields)
+				reqData[$scope.data.sc_cat_item._fields[obj].variable_name] = $scope.data.sc_cat_item._fields[obj].value;
+			reqData = {'variables' : reqData, 'attachment_id' : $scope.data._attachmentGUID, 'attachment_table': 'sp_portal', 'get_portal_messages': 'true'};
+		}
+		else {
+			requestUrl = spUtil.getURL('sc_cat_item');
+			reqData = $scope.data.sc_cat_item;
+			reqData._attachmentGUID = $scope.data._attachmentGUID;
+		}
+		return $http.post(requestUrl, reqData);
+	}
+
+	// spModel populates mandatory - hasMandatory is called by the submit button
+	$scope.hasMandatory = function(mandatory) {
+		return mandatory && mandatory.length > 0;
+	};
+
+	// switch catalog items
+	var unregister = $scope.$on('$sp.list.click', onListClick);
+	$scope.$on("$destroy", function() {
+		unregister();
+	});
+
+	function onListClick(evt, arg) {
+		$scope.data.sys_id = arg.sys_id;
+		spUtil.update($scope);
+	}
+
+	function setFieldsReadonly(){
+		var allFields = g_form.getFieldNames();
+		for(var fieldName in allFields){
+			g_form.setReadOnly(allFields[fieldName], true);
+		}
+	}
+
+	function issueMessage(n, table, sys_id, redirectTo, redirectUrl) {
+		var page = 'ticker_form_custom';
+		var table = 'sc_request'
+		if (c.options.page) {page = c.options.page;}
+		if (c.options.table) {table = c.options.table;}
+		if (redirectTo == 'catalog_home') page = 'sc_home';
+		var url = spUtil.format(c.options.url, {page: page, table: table, sys_id: sys_id});
+		if (c.options.auto_redirect == "true") {
+			if (redirectUrl)
+				$window.location.href = redirectUrl;
+			else
+			$window.location.href = url;
+			return;
+		}
+
+		var t = $scope.m.createdMsg + " " + n + " - ";
+		t += $scope.m.trackMsg;
+		t += ' <a href="' + url + '">' + $scope.m.clickMsg + '</a>';
+		//t = '<a href="?id=ticker_form_custom">Click Here to Go</a>';
+		
+		spUtil.addInfoMessage(t);
+	}
+}]]></client_script>
+        <controller_as>c</controller_as>
+        <css>.panel-button {
+  float: none;
+}
+
+.sp-attachment-add {
+  padding: 5px;
+}
+
+.saveText{
+font-size:11px;
+}
+.check{
+margin-right: 4px;
+    float: left;
+}
+
+
+}
+.p-t-none {
+  padding-top: 0 !important;
+}
+
+.file-list-wrap {
+	margin-bottom: 10px;
+}
+
+.sc-btn {
+  color: $text-color;
+}
+
+.dismiss-button {
+  position: absolute;
+  top: 1rem;
+	right: 10px;
+	color: $text-color;
+	cursor: pointer;
+}
+
+.item-header {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.sc-item-description img {
+  max-width: 100%;
+  height: auto;
+}
+.sc-sticky-item-header {
+  position: sticky;
+  position: -webkit-sticky;
+  position: -ms-sticky;
+  top: -($font-size-h2 + $font-size-base);
+  z-index: 10;
+  background-color: inherit;
+  border-radius: 4px 4px 0 0;
+}
+.sc-fixed {
+  position: fixed;
+  max-height: 100%;
+  width: 17.67777%;
+}
+.no-margin {
+	margin: 0px; 
+}
+.sc-item-error-messages {
+  max-height: 100%;
+  position: absolute;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%; 
+}
+.sc-field-error-label {
+  margin-right: .5em; 
+  display: inline-block;
+  cursor: pointer;
+  background-color: $sc-field-error-color;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.image-gallery {
+  font-size: 8px;
+  color: #CECECE;
+  .active {
+    color: #717171;
+  }
+  i {
+    padding: 0 5px;
+  }
+}
+.relative {
+  position: relative;
+}
+.sc-order-widget-btn {
+   position: absolute;
+   left: 9%;
+}
+
+.close-notification {
+  	position: absolute;
+  	top: 10px;
+  	right: 18px;
+}
+@media only screen and (max-width : 992px) {
+  .sc-fixed {
+    position: relative;
+    width: 100%;
+  }
+  .wishlist-update-message {
+    display : block;
+  }
+  .sc-item-error-messages {
+    position: relative;
+  }
+  .read-more, .read-less {
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .more-text {
+    display: none;
+  }
+  .inline-cart {
+    display: none;
+  }
+  .right-side-cart {
+    display: inherit !important;
+  }
+}
+@media only screen and (max-width : 768px) {
+  .sc-sticky-item-header {
+     position: inherit;
+  }
+  
+}
+.inline-cart {
+  .quantity-selector {
+    display: inline-block;
+    width: 65px;
+    padding-top: 2px;
+  }
+}
+.alert-success .link {
+    text-decoration: underline;
+}
+
+.alert-info-border {
+	border-color: $alert-info-border;
+}
+
+/* Made by Jimmy Gillam */
+$checked-color: #278efc;
+$unchecked-color: #303a46;
+$checkbox-height: 20px;
+$background-color:#fff;
+$font-color:#efefef;
+$duration: .4s;
+ 
+/* Checkmark style starts */
+
+@-moz-keyframes dothabottomcheck{
+    0% { height: 0; }
+    100% { height: $checkbox-height/2; }
+}
+
+@-webkit-keyframes dothabottomcheck{
+    0% { height: 0; }
+    100% { height: $checkbox-height/2; }
+}
+
+@keyframes dothabottomcheck{
+    0% { height: 0; }
+    100% { height: $checkbox-height/2;  }
+}
+
+@keyframes dothatopcheck{
+    0% { height: 0; }
+    50% { height: 0; }
+    100% { height: $checkbox-height * 1.2; }
+}
+@-webkit-keyframes dothatopcheck{
+    0% { height: 0; }
+    50% { height: 0; }
+    100% { height: $checkbox-height * 1.2; }
+}
+@-moz-keyframes dothatopcheck{
+    0% { height: 0; }
+    50% { height: 0; }
+    100% { height: $checkbox-height * 1.2; }
+}
+
+input[type=checkbox]{
+    display:none;
+}
+
+.check-box {
+    height: $checkbox-height;
+    width: $checkbox-height;
+    background-color: transparent;
+    border: $checkbox-height * .1 solid $unchecked-color;
+    border-radius: 5px;
+    position: relative;
+    display: inline-block;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    -moz-transition: border-color ease $duration/2;
+    -o-transition: border-color ease $duration/2;
+    -webkit-transition: border-color ease $duration/2;
+    transition: border-color ease $duration/2;
+    cursor:pointer;
+
+    &amp;::before, &amp;::after {
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        position: absolute;
+        height: 0;
+        width: $checkbox-height * .2;
+        background-color: $checked-color;
+        display: inline-block;
+        -moz-transform-origin: left top;
+        -ms-transform-origin: left top;
+        -o-transform-origin: left top;
+        -webkit-transform-origin: left top;
+        transform-origin: left top;
+        border-radius: 5px;
+        content: ' ';
+        -webkit-transition: opacity ease .5;
+        -moz-transition: opacity ease .5;
+        transition: opacity ease .5;
+    }
+
+    &amp;::before {
+        top:$checkbox-height * .72;
+        left: $checkbox-height * .41;
+        box-shadow: 0 0 0 $checkbox-height * .05 $background-color;
+        -moz-transform: rotate(-135deg);
+        -ms-transform: rotate(-135deg);
+        -o-transform: rotate(-135deg);
+        -webkit-transform: rotate(-135deg);
+        transform: rotate(-135deg);
+    }
+
+    &amp;::after {
+        top: $checkbox-height * .37;
+        left: $checkbox-height * .05;
+        -moz-transform: rotate(-45deg);
+        -ms-transform: rotate(-45deg);
+        -o-transform: rotate(-45deg);
+        -webkit-transform: rotate(-45deg);
+        transform: rotate(-45deg);
+    }
+}
+
+input[type=checkbox]:checked + .check-box,
+.check-box.checked{
+    border-color:$checked-color;
+    
+    &amp;::after{
+        height: $checkbox-height * .5;
+        -moz-animation: dothabottomcheck $duration/2 ease 0s forwards;
+        -o-animation: dothabottomcheck $duration/2 ease 0s forwards;
+        -webkit-animation: dothabottomcheck $duration/2 ease 0s forwards;
+        animation: dothabottomcheck $duration/2 ease 0s forwards;
+    }
+     
+    &amp;::before{
+        height: $checkbox-height * 1.2;
+        -moz-animation: dothatopcheck $duration ease 0s forwards;
+        -o-animation: dothatopcheck $duration ease 0s forwards;
+        -webkit-animation: dothatopcheck $duration ease 0s forwards;
+        animation: dothatopcheck $duration ease 0s forwards;
+    }
+}
+
+ul {
+		list-style: none;
+		margin: 0;
+  	display: flex;
+		padding: 0;
+		li {
+			.universal-inline-block;
+			vertical-align:  middle;
+      padding:5%;
+			a {
+				display: block;
+				font-size: 1.4em;
+				margin: 0 5px;
+				text-decoration: none;
+				i {
+					color: @colorBase;
+					.transition(all, 0.2s, ease-in);
+				}
+				&amp;:hover {
+					i {
+						color: darken(@colorBase, 20%);
+					}
+				}
+				&amp;:focus, &amp;:active {
+					i {
+						transition: none;
+						color: darken(@colorBase, 40%);
+					}
+				}
+			}
+		}
+	}
+@import "bourbon";
+@import "neat";
+
+$base-duration: 500ms;
+
+// Colors
+$color-1: #2c3e50;
+$color-2: #3498db;
+$color-3: #2ecc71;
+$color-4: #e74c3c;
+
+// Breakpoints
+$sm: new-breakpoint(min-width 320px);
+$med: new-breakpoint(min-width 768px);
+$lg: new-breakpoint(min-width 1024px);
+
+*, *:before, *:after {
+	box-sizing: border-box;
+	outline: none;
+}
+
+body {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100vh;
+	background-color: whitesmoke;
+	font-family: 'Source Sans Pro', sans-serif;
+	font-size: 16px;
+	font-smooth: auto;
+	font-weight: 300;
+	line-height: 1.5;
+	color: #444;
+	background-image: url('http://dakotarumors.com/assets/img/header-bg.jpg');
+	background-position: center center;
+	background-size: cover;
+	
+	&amp;:before {
+		position: absolute;
+		content: '';
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(white,0.7);
+		z-index: -1;
+	}
+}
+
+p { font-weight: 400; }
+
+a { text-decoration: none; }
+
+label {
+	cursor: pointer;
+}
+
+
+.modal,
+.modal-box {
+  z-index: 900;
+}
+
+.modal-sandbox {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: transparent;
+}
+
+.modal {
+  display: none; 
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  background: rgb(0,0,0);
+  background: rgba(0,0,0,.8);
+  overflow: auto;
+}
+
+.modal-box {
+  position: relative;
+  width: 80%;
+  max-width: 920px;
+  margin: 100px auto;
+  animation-name: modalbox;
+  animation-duration: .4s;
+  animation-timing-function: cubic-bezier(0,0,.3,1.6);
+}
+.modalResize{
+width: 50% !important;
+}
+
+
+.modal-header {
+  padding: 5px 9px !important;
+//  padding: 20px 40px;
+  background: #3a3f51;
+  color: #ffffff;
+}
+
+.modal-body{
+  background: white;
+  padding: 10px 40px;
+}
+
+.modal-footer{
+  background: white;
+  padding: 5px !important;
+}
+/* Close Button */
+.close-modal {
+  text-align: right;
+  cursor: pointer;
+}
+
+/* Animation */
+@-webkit-keyframes modalbox {
+  0% {
+    top: -250px; 
+    opacity: 0;
+  }
+  100% {
+    top: 0; 
+    opacity: 1;
+  }
+}
+
+@keyframes modalbox {
+  0% {
+    top: -250px; 
+    opacity: 0;
+  }
+  100% {
+    top: 0; 
+    opacity: 1;
+  }
+}
+
+
+//---scroll-bar in modal----
+.modal-sandbox{
+    overflow-y: initial !important
+}
+.modal-body{
+    height: 250px;
+    overflow-y: auto;
+}
+
+
+
+</css>
+        <data_table>sp_instance</data_table>
+        <demo_data/>
+        <description/>
+        <docs/>
+        <field_list>color</field_list>
+        <has_preview>false</has_preview>
+        <id/>
+        <internal>false</internal>
+        <link><![CDATA[function(scope, elem){
+    scope.setFocusToAttachment = function () {
+		setTimeout(function () {
+			var inboxArray = elem.find("a.view-attachment");
+			inboxArray.focus();
+		}, 100);
+	}
+	scope.setFocusToAttachmentButton = function () {
+		elem.find('.sp-attachment-add')[0].focus();
+	}
+}
+	]]></link>
+        <name>CT - SC Catalog Item</name>
+        <option_schema>[{"name":"show_add_cart_button","section":"other","label":"Show Add Cart Button","type":"boolean"},{"hint":"If you turn on this, you will be able to see field validation messages on right side","name":"show_field_validation_messages","default_value":"true","section":"other","label":"Show field validation messages","type":"boolean"},{"hint":"Show Add/Update Wish List buttons","name":"show_add_to_wishlist_button","default_value":"true","section":"other","label":"Show Add/Update Wish List buttons","type":"boolean"},{"hint":"Order item section on top. If you uncheck this, order section will be displayed at bottom of screen","name":"display_cart_on_right","default_value":"true","section":"other","label":"Order Item Section On Top","type":"boolean"},{"hint":"Show item description in few words with an option to read more","name":"show_less_description","default_value":"true","section":"other","label":"Enable Show More/Less for Item description on Mobile","type":"boolean"},{"hint":"Hide the Delivery Time in the widget","name":"hide_delivery_time","section":"other","default_value":"false","label":"Hide Delivery Time","type":"boolean"}]</option_schema>
+        <public>false</public>
+        <roles>snc_external,snc_internal</roles>
+        <script><![CDATA[// populate the 'data' variable with catalog item, variables, and variable view
+(function() {
+	
+	
+	// portal can specify a catalog and catalog category home page
+	data.sc_catalog_page = $sp.getDisplayValue("sc_catalog_page") || "sc_home";
+	data.sc_category_page = $sp.getDisplayValue("sc_category_page") || "sc_category";
+  data.save_template = false;
+
+	options.show_add_cart_button = (options.show_add_cart_button == "true");
+	
+
+	if (options.page) {
+		var pageGR = new GlideRecord("sp_page");
+		options.page = (pageGR.get(options.page)) ? pageGR.getValue("id") : null;
+	}
+
+	if (options.table) {
+		var tableGR = new GlideRecord("sys_db_object");
+		options.table = (tableGR.get(options.table)) ? tableGR.getValue("name") : null;
+	}
+
+	options.url = options.url || "?id={page}&table={table}&sys_id={sys_id}";
+	data.showPrices = $sp.showCatalogPrices();
+	var m = data.msgs = {};
+	m.submitMsg = gs.getMessage("Submit");
+	m.submittedMsg = gs.getMessage("Submitted");
+	m.createdMsg = gs.getMessage("Created");
+	m.trackMsg = gs.getMessage("track using 'Requests' in the header or");
+	m.clickMsg = gs.getMessage("click here to view");
+	m.dialogTitle = gs.getMessage("Delete Attachment");
+	m.dialogMessage = gs.getMessage("Are you sure?");
+	m.dialogOK = gs.getMessage("OK");
+	m.dialogCancel = gs.getMessage("Cancel");
+	m.largeAttachmentMsg = gs.getMessage("Attached files must be smaller than {0} - please try again", "24MB");
+	m.renameSuccessMsg = gs.getMessage("Attachment renamed successfully");
+	m.deleteSuccessMsg = gs.getMessage("Attachment deleted successfully");
+	if(input && input.action == 'add_template'){
+		var fields = input.mapping._fields;
+
+		var item = input.mapping.sys_id;
+		var map = new GlideRecord('x_11042_ct_item_templates');
+    map.newRecord();
+		map.item = item;
+		map.is_valid = true;
+		map.name=input.tempName;
+		map.description=input.tempDesc;
+		var id = map.insert();
+		createVariables(id,fields);
+
+	}
+	
+	else if (input)
+		data.sys_id = input.sys_id;
+	else if (options.sys_id)
+		data.sys_id = options.sys_id;
+	else
+		data.sys_id = $sp.getParameter("sys_id") || $sp.getParameter('sl_sys_id');
+
+	if (!data.sys_id)
+		return;
+
+	
+		
+		function createVariables(temp,map){
+			
+			var tVars = new GlideRecord('x_11042_ct_template_variables');
+			Object.keys(map).forEach(function(k){
+				
+				tVars.newRecord();
+				if(map[k]!=''){
+					if(k!='formatter' && k!='select_template' && k!='catalog_templates'){
+					tVars.ques_label=map[k].label;
+					tVars.template = temp;
+					tVars.actual_value = map[k].value;
+					tVars.display_value = map[k].displayValue;
+					tVars.question = k;
+					tVars.insert();
+				}}
+				});
+		}
+	
+	
+	data._attachmentGUID = gs.generateGUID();
+	var validatedItem = new sn_sc.CatItem('' + data.sys_id);
+	if (!validatedItem.canView())
+		return;
+
+	data.sc_cat_item = $sp.getCatalogItem(data.sys_id, true);
+	if (data.sc_cat_item.category) {
+		var categoryJS = new sn_sc.CatCategory(data.sc_cat_item.category);
+		data.category = {
+			name: categoryJS.getTitle(),
+			url: '?id='+data.sc_category_page+'&sys_id=' + data.sc_cat_item.category
+		}
+	}
+
+	$sp.logStat('Catalog View', data.sc_cat_item.sys_class_name, data.sys_id, data.sc_cat_item.name);
+})()]]></script>
+        <servicenow>false</servicenow>
+        <sys_class_name>sp_widget</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-01-28 05:35:14</sys_created_on>
+        <sys_id>93258c95db1f230004eef36f29961949</sys_id>
+        <sys_mod_count>373</sys_mod_count>
+        <sys_name>CT - SC Catalog Item</sys_name>
+        <sys_package display_value="Catalog Templates" source="x_11042_ct">0ff722cfdb03230004eef36f29961903</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Catalog Templates">0ff722cfdb03230004eef36f29961903</sys_scope>
+        <sys_update_name>sp_widget_93258c95db1f230004eef36f29961949</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-02-12 05:49:22</sys_updated_on>
+        <template><![CDATA[
+
+<div id="sc_cat_item" >
+  <div class="row" ng-if="::data.sc_cat_item" >
+    <div ng-if="::data.sc_cat_item.picture" class="col-sm-3">
+      <div class="panel panel-{{::options.color}} b wrapper-lg text-center">
+        <img class="img-responsive catalog-item-image" alt="{{::data.sc_cat_item.name}}" style="display: inline" ng-src="{{::data.sc_cat_item.picture}}" />
+      </div>
+    </div>
+    <div ng-class="{true:'col-sm-9',false:'col-sm-12'}[data.sc_cat_item.picture.length > 0]">
+      <div class="panel panel-default">
+        <div class="wrapper-md row">
+          <div class ='col-xs-10'>
+            
+        
+          <h1 class="h2 m-t-none m-b-sm font-thin">{{::data.sc_cat_item.name}}</h1>
+          <div class="text-muted">{{::data.sc_cat_item.short_description}}</div>
+          </div>
+          <div class='col-xs-2'>
+            
+            	
+                <div class='check'><input type="checkbox" id="cbtest" title='Save as Template'/>
+                  <label for="cbtest" class="check-box" title='Save as Template'></label></div>
+                <div class='saveText'>
+                  Save As Template
+                </div>
+    
+            
+							
+        
+            
+          </div>
+          
+        </div>
+        <div ng-if="::data.sc_cat_item.description" class="wrapper-md b-t">
+          <div ng-bind-html="::data.sc_cat_item.description"></div>
+        </div>
+        <div ng-if="::data.sc_cat_item.content_type == 'external'" class="wrapper-md"><a ng-href="{{::data.sc_cat_item.url}}" target={{::data.sc_cat_item.target}}>{{::data.sc_cat_item.url}} ➚</a></div>
+				<div ng-if="::data.sc_cat_item.content_type == 'kb'" class="wrapper-md"><a  ng-href="?id=kb_article&sys_id={{::data.sc_cat_item.kb_article}}">${Go to KB Article:} {{::data.sc_cat_item.kb_article_description}}</a></div>
+        <div ng-if="::data.sc_cat_item._fields">
+          <sp-cat-item item="::data.sc_cat_item" />
+          <form>
+            <div ng-class="{'b-t wrapper-md': data.sc_cat_item._view.length}">
+              <!-- display view and model -->
+              <sp-model form-model="::data.sc_cat_item" mandatory="mandatory"></sp-model>
+            </div>
+            <div ng-if="data.sc_cat_item.sys_class_name != 'sc_cat_item_content'" class="b-t wrapper-md">
+              <div class="m-b" ng-if="data.showPrices && (data.sc_cat_item.price || data.sc_cat_item.recurring_price)" >
+                <div ng-if="data.sc_cat_item.price" class="h4 cat_item_price">${Price}: {{data.sc_cat_item.price}}</div>
+                <em ng-if="data.sc_cat_item.recurring_price" class="cat_item_price">${Recurring Price}: {{data.sc_cat_item.recurring_price}}</em>
+              </div>
+              <now-attachments-list template="sp_attachment_single_line" ></now-attachments-list>
+              <span ng-if="::c.allowOrder()">
+                <select ng-if="c.showQuantitySelector()"
+                        ng-disabled="submitted"
+                        class="form-control quantity-selector"
+                        ng-model="c.quantity"
+                        aria-label="${Quantity}"
+                        ng-options="num for num in [1,2,3,4,5,6,7,8,9,10]">
+                </select>
+                <label ng-if="!submitted" style="float:right;font-weight:normal;cursor:pointer;"><sp-attachment-button></sp-attachment-button><span style="padding-left:4px;">${Add attachments}</span></label>
+                <button ng-if="::c.showOrderNowButton()" tabindex="0" name="submit" ng-disabled="submitted" ng-click="c.data.submitItem()" class="btn btn-primary">{{submitButtonMsg}}</button>
+                <button tabindex="0" ng-if="c.showAddCartBtn()" name="submit" ng-disabled="submitted" ng-click="triggerAddToCart()" class="btn btn-default">${Add to Cart}</button>
+                <span ng-if="submitting" style="padding-left:4px">${Submitting...}</span>
+              </span>
+              <div ng-if="hasMandatory(mandatory)" class="alert alert-info" style="margin-top: .5em">
+                <span ng-if="hasMandatory(mandatory)">${Required information} </span>
+                <span ng-repeat="f in mandatory" class="label label-danger" style="margin-right: .5em; display: inline-block;">{{::f.label}}</span>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <sp-message-dialog name="delete_attachment"
+                       title="{{m.dialogTitle}}"
+                       message="{{m.dialogMessage}}"
+                       ok="{{m.dialogOK}}"
+                       cancel="{{m.dialogCancel}}"
+                       dialog-class="delete-dialog"></sp-message-dialog>
+
+  <div ng-if="::!data.sc_cat_item" >
+    <div class="panel panel-default">
+      <div class="panel-heading"><h4 class="panel-title">${Item not found}</h4></div>
+      <div class="panel-body wrapper">
+        <p>${This item is not found or currently not available}</p>
+        <p>${Suggestions}:</p>
+        <ul>
+          <li>${Try searching for the item}</li>
+          <li>${Go to the Service Catalog homepage}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="sr-only" aria-live="assertive">{{c.status}}</div>
+</div>
+
+
+
+
+
+<!------Modal --------->
+
+<div class="modal" id="tempSave">
+  <div class="modal-sandbox"></div>
+  <div class="modal-box modalResize">
+    <div class="modal-header">
+       <div class='row'>
+         
+    
+      <div class='col-md-9'><h5>Simple modal box</h5></div>
+      <div class="close-modal col-md-3">&#10006;</div>
+           </div>
+    </div>
+    <div class="modal-body">
+   <div class='row'>
+     
+     
+<div class="form-group col-md-12">
+  <label class="control-label" for="inputDefault">Name</label>
+ <input class="form-control" ng-model="c.data.tempName" type="text">
+</div>
+      <div class="form-group col-md-12">
+  <label class="control-label" for="inputDefault">Description</label>
+  <textarea class="form-control" rows="4" cols="50" ng-model="c.data.tempDesc"></textarea>
+<!--  <input class="form-control" ng-model="c.data.tempDesc" type="text">-->
+</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+       <button class="btn btn-primary" ng-click='c.data.saveTemp()'>Save</button>
+    </div>
+  </div>
+</div>]]></template>
+    </sp_widget>
+</record_update>

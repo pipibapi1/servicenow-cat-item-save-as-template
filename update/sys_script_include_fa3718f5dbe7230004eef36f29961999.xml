@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_11042_ct.itemTemplate</api_name>
+        <client_callable>true</client_callable>
+        <description/>
+        <name>itemTemplate</name>
+        <script><![CDATA[var itemTemplate = Class.create();
+itemTemplate.prototype = Object.extendsObject(global.AbstractAjaxProcessor, {
+	getTemplate:function(){
+		var item=this.getParameter('sysparm_item');
+		var gr = new GlideRecord("x_11042_ct_item_templates");
+		gr.addQuery("item",item);
+		gr.query();
+		if (gr.next()) {
+			return true;
+		}
+		else
+			return false;
+		
+		
+	},
+	type: 'itemTemplate'
+});]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-02-11 06:29:41</sys_created_on>
+        <sys_id>fa3718f5dbe7230004eef36f29961999</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>itemTemplate</sys_name>
+        <sys_package display_value="Catalog Templates" source="x_11042_ct">0ff722cfdb03230004eef36f29961903</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="Catalog Templates">0ff722cfdb03230004eef36f29961903</sys_scope>
+        <sys_update_name>sys_script_include_fa3718f5dbe7230004eef36f29961999</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-02-11 06:29:41</sys_updated_on>
+    </sys_script_include>
+</record_update>

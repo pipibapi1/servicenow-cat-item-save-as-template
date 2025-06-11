@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="item_option_new_set">
+    <item_option_new_set action="INSERT_OR_UPDATE">
+        <create_roles/>
+        <description>Container for Variables used in Catalog Templates</description>
+        <display_title>true</display_title>
+        <internal_name>catalog_templates</internal_name>
+        <layout>normal</layout>
+        <name/>
+        <order>1</order>
+        <read_roles/>
+        <sys_class_name>item_option_new_set</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-02-09 17:01:14</sys_created_on>
+        <sys_id>3e059859db23230004eef36f299619a6</sys_id>
+        <sys_mod_count>1</sys_mod_count>
+        <sys_name>Apply Template</sys_name>
+        <sys_package display_value="Catalog Templates" source="x_11042_ct">0ff722cfdb03230004eef36f29961903</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Catalog Templates">0ff722cfdb03230004eef36f29961903</sys_scope>
+        <sys_update_name>item_option_new_set_3e059859db23230004eef36f299619a6</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-02-09 17:09:46</sys_updated_on>
+        <title>Apply Template</title>
+        <type>one_to_one</type>
+        <write_roles/>
+    </item_option_new_set>
+</record_update>

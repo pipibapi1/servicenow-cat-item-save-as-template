@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="m2m_sp_widget_dependency">
+    <m2m_sp_widget_dependency action="INSERT_OR_UPDATE">
+        <sp_dependency display_value="HeisenbergRetinaIcons">f7fdd25e87c50300e0ef0cf888cb0b7b</sp_dependency>
+        <sp_widget display_value="CT - SC Catalog Item">93258c95db1f230004eef36f29961949</sp_widget>
+        <sys_class_name>m2m_sp_widget_dependency</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-01-28 05:35:15</sys_created_on>
+        <sys_id>a3258019db1f230004eef36f299619a0</sys_id>
+        <sys_mod_count>0</sys_mod_count>
+        <sys_name>HeisenbergRetinaIcons.Copy of SC Catalog Item</sys_name>
+        <sys_package display_value="Catalog Templates" source="x_11042_ct">0ff722cfdb03230004eef36f29961903</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Catalog Templates">0ff722cfdb03230004eef36f29961903</sys_scope>
+        <sys_update_name>m2m_sp_widget_dependency_a3258019db1f230004eef36f299619a0</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-01-28 05:35:15</sys_updated_on>
+    </m2m_sp_widget_dependency>
+</record_update>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include">
+    <sys_script_include action="INSERT_OR_UPDATE">
+        <access>package_private</access>
+        <active>true</active>
+        <api_name>x_11042_ct.populateTempData</api_name>
+        <client_callable>true</client_callable>
+        <description/>
+        <name>populateTempData</name>
+        <script><![CDATA[var populateTempData = Class.create();
+populateTempData.prototype = Object.extendsObject(global.AbstractAjaxProcessor, {
+tempData:function(){
+	var tempAllData=[];
+	var temp=this.getParameter('sysparm_temp');
+	var gr = new GlideRecord("x_11042_ct_template_variables");
+gr.addQuery("template", temp);
+gr.query();
+while (gr.next()) {
+	var data={};
+   data.actual_value=gr.actual_value.getDisplayValue();
+	data.question=gr.question.getDisplayValue();
+	tempAllData.push(data);
+}
+
+	return JSON.stringify(tempAllData);
+},
+    type: 'populateTempData'
+});]]></script>
+        <sys_class_name>sys_script_include</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-02-08 08:04:55</sys_created_on>
+        <sys_id>763ecdb0db63230004eef36f2996193c</sys_id>
+        <sys_mod_count>7</sys_mod_count>
+        <sys_name>populateTempData</sys_name>
+        <sys_package display_value="Catalog Templates" source="x_11042_ct">0ff722cfdb03230004eef36f29961903</sys_package>
+        <sys_policy>read</sys_policy>
+        <sys_scope display_value="Catalog Templates">0ff722cfdb03230004eef36f29961903</sys_scope>
+        <sys_update_name>sys_script_include_763ecdb0db63230004eef36f2996193c</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-02-08 10:39:41</sys_updated_on>
+    </sys_script_include>
+</record_update>
